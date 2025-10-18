@@ -26,6 +26,9 @@ public class BrevoEmailService {
 
     public boolean sendOtpEmail(String toEmail, String otp) {
         try {
+            logger.info("Sending OTP email via Brevo to: {}", toEmail);
+            logger.debug("Using from email: {}, from name: {}", fromEmail, fromName);
+            
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
@@ -40,11 +43,17 @@ public class BrevoEmailService {
             logger.info("OTP email sent successfully via Brevo to: {}", toEmail);
             return true;
 
+        } catch (jakarta.mail.AuthenticationFailedException e) {
+            logger.error("Authentication failed for Brevo SMTP to {}: {}. Please check BREVO_API_KEY", toEmail, e.getMessage());
+            return false;
+        } catch (org.eclipse.angus.mail.util.MailConnectException e) {
+            logger.error("Connection failed to Brevo SMTP server for {}: {}. Network or firewall issue.", toEmail, e.getMessage());
+            return false;
         } catch (MessagingException e) {
-            logger.error("Error sending email via Brevo to {}: {}", toEmail, e.getMessage());
+            logger.error("Messaging error sending email via Brevo to {}: {}", toEmail, e.getMessage());
             return false;
         } catch (Exception e) {
-            logger.error("Unexpected error sending email via Brevo to {}: {}", toEmail, e.getMessage());
+            logger.error("Unexpected error sending email via Brevo to {}: {}", toEmail, e.getMessage(), e);
             return false;
         }
     }
@@ -57,7 +66,7 @@ public class BrevoEmailService {
             helper.setFrom(fromEmail, fromName);
             helper.setTo(toEmail);
             helper.setSubject("Welcome to Cinema Management System");
-            
+      
             String htmlContent = buildWelcomeEmailContent(userName);
             helper.setText(htmlContent, true);
 

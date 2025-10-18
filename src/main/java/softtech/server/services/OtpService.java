@@ -249,47 +249,72 @@ public class OtpService {
 
 	/*** SEND OTP EMAIL ***/
 	private void sendOtpEmail(String email, String otp) throws MessagingException {
+		logger.info("Attempting to send OTP to: {}", email);
+		logger.debug("Brevo API Key configured: {}", !brevoApiKey.isEmpty() ? "Yes" : "No");
+		logger.debug("Mail username configured: {}", !mailUsername.isEmpty() ? mailUsername : "Not set");
+		
 		// Ưu tiên sử dụng Brevo nếu có API key
-		if (!brevoApiKey.isEmpty()) {
+		if (!brevoApiKey.isEmpty() && !brevoApiKey.equals("${BREVO_API_KEY}")) {
 			logger.info("Using Brevo to send OTP email to: {}", email);
-			boolean success = brevoEmailService.sendOtpEmail(email, otp);
-			if (success) {
-				logger.info("OTP email sent successfully via Brevo to: {}", email);
-				return;
-			} else {
-				logger.warn("Brevo failed, falling back to SMTP for: {}", email);
+			try {
+				boolean success = brevoEmailService.sendOtpEmail(email, otp);
+				if (success) {
+					logger.info("OTP email sent successfully via Brevo to: {}", email);
+					return;
+				} else {
+					logger.warn("Brevo failed, falling back to SMTP for: {}", email);
+				}
+			} catch (Exception e) {
+				logger.error("Brevo service error for {}: {}", email, e.getMessage(), e);
+				logger.warn("Brevo failed with exception, falling back to SMTP for: {}", email);
 			}
+		} else {
+			logger.warn("Brevo API key not configured or is placeholder, using SMTP directly");
 		}
 
-		// Fallback to SMTP (sẽ fail trên Railway do port bị chặn)
+		// Fallback to SMTP
 		try {
+			logger.info("Attempting SMTP email to: {}", email);
 			MimeMessage message = mailSender.createMimeMessage();
-			MimeMessageHelper helper = new MimeMessageHelper(message, true);
+			MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 			helper.setTo(email);
 			helper.setSubject("Your OTP Code - Cinema Management System");
 			
 			String htmlContent = buildFallbackOtpContent(otp);
 			helper.setText(htmlContent, true);
 			
-			if (!mailUsername.isEmpty()) {
+			if (!mailUsername.isEmpty() && !mailUsername.equals("${BREVO_USERNAME}")) {
 				helper.setFrom(mailUsername, "Cinema Management System");
+			} else {
+				helper.setFrom("noreply@cinema.com", "Cinema Management System");
 			}
 			
 			mailSender.send(message);
 			logger.info("OTP email sent successfully via SMTP to: {}", email);
 			
 		} catch (Exception e) {
-			logger.warn("Failed to send OTP email via SMTP to: {}. Error: {}", email, e.getMessage());
+			logger.error("SMTP failed for {}: {}", email, e.getMessage(), e);
 			
-			// Mock mode for development/testing
-			if (mailUsername.isEmpty() || brevoApiKey.isEmpty()) {
-				logger.info("🎬 DEVELOPMENT MODE - OTP code for {}: {}", email, otp);
-				logger.info("📧 In production, configure BREVO_API_KEY environment variable");
+			// Development/Mock mode
+			if (isDevMode()) {
+				logger.warn("🎬 DEVELOPMENT MODE - Email services unavailable");
+				logger.warn("📧 OTP code for {}: {}", email, otp);
+				logger.warn("💡 To fix: Set BREVO_API_KEY environment variable with valid Brevo API key");
+				logger.warn("💡 Or configure SMTP settings properly");
+				// Don't throw exception in dev mode, just log
+				return;
 			} else {
-				// Production environment but both email services failed
-				throw new RuntimeException("Failed to send OTP email. Please check email service configuration.");
+				// Production environment - both services failed
+				logger.error("❌ All email services failed for production environment");
+				throw new RuntimeException("Failed to send OTP email. Email service is currently unavailable. Please try again later or contact support.");
 			}
 		}
+	}
+	
+	private boolean isDevMode() {
+		// Check if we're in development mode
+		return (brevoApiKey.isEmpty() || brevoApiKey.equals("${BREVO_API_KEY}")) && 
+		       (mailUsername.isEmpty() || mailUsername.equals("${BREVO_USERNAME}"));
 	}
 
 	private String buildFallbackOtpContent(String otp) {
