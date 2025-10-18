@@ -1,22 +1,24 @@
 package softtech.server.services;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.BodyInserters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
+import java.util.Map;
+import java.util.List;
 
 @Service
 public class BrevoEmailService {
     private static final Logger logger = LoggerFactory.getLogger(BrevoEmailService.class);
+    
+    private final WebClient webClient;
 
-    @Autowired
-    private JavaMailSender mailSender;
+    @Value("${brevo.api.key}")
+    private String brevoApiKey;
 
     @Value("${brevo.from.email:nhomweb11@gmail.com}")
     private String fromEmail;
@@ -24,61 +26,75 @@ public class BrevoEmailService {
     @Value("${brevo.from.name:Cinema Management System}")
     private String fromName;
 
+    public BrevoEmailService() {
+        this.webClient = WebClient.builder()
+            .baseUrl("https://api.brevo.com/v3")
+            .build();
+    }
+
     public boolean sendOtpEmail(String toEmail, String otp) {
         try {
-            logger.info("Sending OTP email via Brevo to: {}", toEmail);
+            logger.info("Sending OTP email via Brevo REST API to: {}", toEmail);
             logger.debug("Using from email: {}, from name: {}", fromEmail, fromName);
             
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            Map<String, Object> emailData = Map.of(
+                "sender", Map.of(
+                    "email", fromEmail,
+                    "name", fromName
+                ),
+                "to", List.of(Map.of("email", toEmail)),
+                "subject", "Your OTP Code - Cinema Management System",
+                "htmlContent", buildOtpEmailContent(otp)
+            );
 
-            helper.setFrom(fromEmail, fromName);
-            helper.setTo(toEmail);
-            helper.setSubject("Your OTP Code - Cinema Management System");
-            
-            String htmlContent = buildOtpEmailContent(otp);
-            helper.setText(htmlContent, true);
+            String response = webClient.post()
+                .uri("/smtp/email")
+                .header("api-key", brevoApiKey)
+                .header("Content-Type", "application/json")
+                .body(BodyInserters.fromValue(emailData))
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
 
-            mailSender.send(message);
-            logger.info("OTP email sent successfully via Brevo to: {}", toEmail);
+            logger.info("OTP email sent successfully via Brevo REST API to: {}", toEmail);
+            logger.debug("Brevo API response: {}", response);
             return true;
 
-        } catch (jakarta.mail.AuthenticationFailedException e) {
-            logger.error("Authentication failed for Brevo SMTP to {}: {}. Please check BREVO_API_KEY", toEmail, e.getMessage());
-            return false;
-        } catch (org.eclipse.angus.mail.util.MailConnectException e) {
-            logger.error("Connection failed to Brevo SMTP server for {}: {}. Network or firewall issue.", toEmail, e.getMessage());
-            return false;
-        } catch (MessagingException e) {
-            logger.error("Messaging error sending email via Brevo to {}: {}", toEmail, e.getMessage());
-            return false;
         } catch (Exception e) {
-            logger.error("Unexpected error sending email via Brevo to {}: {}", toEmail, e.getMessage(), e);
+            logger.error("Error sending OTP email via Brevo REST API to {}: {}", toEmail, e.getMessage(), e);
             return false;
         }
     }
 
     public boolean sendWelcomeEmail(String toEmail, String userName) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            logger.info("Sending welcome email via Brevo REST API to: {}", toEmail);
+            
+            Map<String, Object> emailData = Map.of(
+                "sender", Map.of(
+                    "email", fromEmail,
+                    "name", fromName
+                ),
+                "to", List.of(Map.of("email", toEmail)),
+                "subject", "Welcome to Cinema Management System",
+                "htmlContent", buildWelcomeEmailContent(userName)
+            );
 
-            helper.setFrom(fromEmail, fromName);
-            helper.setTo(toEmail);
-            helper.setSubject("Welcome to Cinema Management System");
-      
-            String htmlContent = buildWelcomeEmailContent(userName);
-            helper.setText(htmlContent, true);
+            String response = webClient.post()
+                .uri("/smtp/email")
+                .header("api-key", brevoApiKey)
+                .header("Content-Type", "application/json")
+                .body(BodyInserters.fromValue(emailData))
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
 
-            mailSender.send(message);
-            logger.info("Welcome email sent successfully via Brevo to: {}", toEmail);
+            logger.info("Welcome email sent successfully via Brevo REST API to: {}", toEmail);
+            logger.debug("Brevo API response: {}", response);
             return true;
 
-        } catch (MessagingException e) {
-            logger.error("Error sending welcome email via Brevo to {}: {}", toEmail, e.getMessage());
-            return false;
         } catch (Exception e) {
-            logger.error("Unexpected error sending welcome email via Brevo to {}: {}", toEmail, e.getMessage());
+            logger.error("Error sending welcome email via Brevo REST API to {}: {}", toEmail, e.getMessage(), e);
             return false;
         }
     }
@@ -104,7 +120,7 @@ public class BrevoEmailService {
                     <div class="header">
                         <h1>🎬 Cinema Management System</h1>
                         <h2>OTP Verification Code</h2>
-                        <span class="brevo-badge">Powered by Brevo</span>
+                        <span class="brevo-badge">Powered by Brevo REST API</span>
                     </div>
                     
                     <p>Xin chào,</p>
@@ -150,7 +166,7 @@ public class BrevoEmailService {
                 <div class="container">
                     <div class="header">
                         <h1>🎬 Chào mừng đến với Cinema Management System!</h1>
-                        <span class="brevo-badge">Powered by Brevo</span>
+                        <span class="brevo-badge">Powered by Brevo REST API</span>
                     </div>
                     
                     <div class="content">
