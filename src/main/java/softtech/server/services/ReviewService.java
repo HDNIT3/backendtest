@@ -1,6 +1,7 @@
 package softtech.server.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -36,9 +37,9 @@ public class ReviewService {
         LocalDateTime fromDateTime = (from != null) ? from.atStartOfDay() : null;
         LocalDateTime toDateTime = (to != null) ? to.plusDays(1).atStartOfDay() : null;
 
-        List<Review> reviews = reviewRepo.findFilteredReviews(movieTitle, fromDateTime, toDateTime, pageable);
+        Page<Review> reviewPage = reviewRepo.findFilteredReviews(movieTitle, fromDateTime, toDateTime, pageable);
 
-        return reviews.stream().map(this::convertToDTO).collect(Collectors.toList());
+        return reviewPage.getContent().stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     public ReviewDTO createReview(CreateReviewDTO createDTO, String customerId) {

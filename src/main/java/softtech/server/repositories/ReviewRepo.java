@@ -1,5 +1,6 @@
 package softtech.server.repositories;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -17,9 +18,8 @@ public interface ReviewRepo extends JpaRepository<Review, String> {
     @Query("SELECT r FROM Review r " +
             "WHERE (:movieTitle IS NULL OR UPPER(r.movie.title) LIKE UPPER(CONCAT('%', :movieTitle, '%'))) " +
             "AND (:from IS NULL OR r.createdAt >= :from) " +
-            "AND (:to IS NULL OR r.createdAt < :to) " +
-            "ORDER BY r.createdAt DESC")
-    List<Review> findFilteredReviews(
+            "AND (:to IS NULL OR r.createdAt <= :to)")
+    Page<Review> findFilteredReviews(
             @Param("movieTitle") String movieTitle,
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to,
