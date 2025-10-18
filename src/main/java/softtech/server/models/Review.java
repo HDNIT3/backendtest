@@ -6,9 +6,10 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
+@Entity
+@Table(name = "reviews")
 @Data
 @NoArgsConstructor @AllArgsConstructor
-@Entity(name = "reviews")
 public class Review {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

@@ -5,6 +5,7 @@ import lombok.*;
 import softtech.server.enums.CustomerType;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -35,4 +36,7 @@ public class Customer {
     private Account account;
 
     private Integer loyaltyPoints;
+
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Review> reviews = new ArrayList<>();
 }
