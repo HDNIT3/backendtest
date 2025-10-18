@@ -9,13 +9,12 @@ import org.springframework.stereotype.Repository;
 import softtech.server.models.Review;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
 
 @Repository
 public interface ReviewRepo extends JpaRepository<Review, String> {
 
-    @Query("SELECT r FROM reviews r " +
+    @Query("SELECT r FROM Review r " +
             "WHERE (:movieTitle IS NULL OR UPPER(r.movie.title) LIKE UPPER(CONCAT('%', :movieTitle, '%'))) " +
             "AND (:from IS NULL OR r.createdAt >= :from) " +
             "AND (:to IS NULL OR r.createdAt <= :to)")
@@ -26,18 +25,17 @@ public interface ReviewRepo extends JpaRepository<Review, String> {
             Pageable pageable
     );
 
-    @Query("SELECT AVG(CAST(r.rating AS double)) FROM reviews r WHERE r.movie.movieId = :movieId")
+    @Query("SELECT AVG(r.rating) FROM Review r WHERE r.movie.movieId = :movieId")
     Double calculateAverageRatingByMovieId(@Param("movieId") String movieId);
 
-    @Query("SELECT COUNT(r) FROM reviews r WHERE r.movie.movieId = :movieId")
+    @Query("SELECT COUNT(r) FROM Review r WHERE r.movie.movieId = :movieId")
     Long countByMovieId(@Param("movieId") String movieId);
 
-    @Query("SELECT r FROM reviews r WHERE r.movie.movieId = :movieId ORDER BY r.createdAt DESC")
+    @Query("SELECT r FROM Review r WHERE r.movie.movieId = :movieId ORDER BY r.createdAt DESC")
     List<Review> findByMovieId(@Param("movieId") String movieId);
 
-    @Query("SELECT r FROM reviews r WHERE r.customer.customerId = :customerId ORDER BY r.createdAt DESC")
+    @Query("SELECT r FROM Review r WHERE r.customer.customerId = :customerId ORDER BY r.createdAt DESC")
     List<Review> findByCustomerId(@Param("customerId") String customerId);
 
     List<Review> findByCustomer_CustomerId(String customerId);
-
 }
