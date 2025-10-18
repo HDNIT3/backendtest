@@ -40,7 +40,7 @@ public class OtpService {
 	private static final Logger logger = LoggerFactory.getLogger(OtpService.class);
 	
 	private final JavaMailSender mailSender;
-	private final SendGridEmailService sendGridEmailService;
+	private final BrevoEmailService brevoEmailService;
 	private final Map<String, OtpDTO> otpStore = new ConcurrentHashMap<>(); // Thread-safe
 	private final Map<String, OtpFogotPassDTO> otpStoreFor = new ConcurrentHashMap<>();
 	private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -48,8 +48,8 @@ public class OtpService {
 	@Value("${spring.mail.username:}")
 	private String mailUsername;
 
-	@Value("${sendgrid.api.key:}")
-	private String sendGridApiKey;
+	@Value("${brevo.api.key:}")
+	private String brevoApiKey;
 
 	@Autowired
 	private AccountRepo accountRepo;
@@ -61,9 +61,9 @@ public class OtpService {
 	private EmployeeRepo employeeRepo;
 
 	@Autowired
-	public OtpService(JavaMailSender mailSender, SendGridEmailService sendGridEmailService) {
+	public OtpService(JavaMailSender mailSender, BrevoEmailService brevoEmailService) {
 		this.mailSender = mailSender;
-		this.sendGridEmailService = sendGridEmailService;
+		this.brevoEmailService = brevoEmailService;
 	}
 
 	/*** OTP GENERATION ***/
@@ -249,15 +249,15 @@ public class OtpService {
 
 	/*** SEND OTP EMAIL ***/
 	private void sendOtpEmail(String email, String otp) throws MessagingException {
-		// Ưu tiên sử dụng SendGrid nếu có API key
-		if (!sendGridApiKey.isEmpty()) {
-			logger.info("Using SendGrid to send OTP email to: {}", email);
-			boolean success = sendGridEmailService.sendOtpEmail(email, otp);
+		// Ưu tiên sử dụng Brevo nếu có API key
+		if (!brevoApiKey.isEmpty()) {
+			logger.info("Using Brevo to send OTP email to: {}", email);
+			boolean success = brevoEmailService.sendOtpEmail(email, otp);
 			if (success) {
-				logger.info("OTP email sent successfully via SendGrid to: {}", email);
+				logger.info("OTP email sent successfully via Brevo to: {}", email);
 				return;
 			} else {
-				logger.warn("SendGrid failed, falling back to SMTP for: {}", email);
+				logger.warn("Brevo failed, falling back to SMTP for: {}", email);
 			}
 		}
 
@@ -282,9 +282,9 @@ public class OtpService {
 			logger.warn("Failed to send OTP email via SMTP to: {}. Error: {}", email, e.getMessage());
 			
 			// Mock mode for development/testing
-			if (mailUsername.isEmpty() || sendGridApiKey.isEmpty()) {
+			if (mailUsername.isEmpty() || brevoApiKey.isEmpty()) {
 				logger.info("🎬 DEVELOPMENT MODE - OTP code for {}: {}", email, otp);
-				logger.info("📧 In production, configure SENDGRID_API_KEY environment variable");
+				logger.info("📧 In production, configure BREVO_API_KEY environment variable");
 			} else {
 				// Production environment but both email services failed
 				throw new RuntimeException("Failed to send OTP email. Please check email service configuration.");
